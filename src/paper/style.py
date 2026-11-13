@@ -14,6 +14,7 @@ from matplotlib import patheffects
 from matplotlib.colors import LinearSegmentedColormap, LogNorm
 
 from ..config import FIGURES, FONTS, REPO_ROOT
+from ..stimuli.typography import pinned_fonts
 
 PT_PER_INCH = 72.0
 TEXT_WIDTH_IN = 5.5
@@ -198,7 +199,8 @@ def cut_static_face() -> Path:
 
     weight = 700
     family = mpl.rcParams["font.sans-serif"][0]
-    source = Path(fm.findfont(fm.FontProperties(family=family)))
+    source = Path(pinned_fonts().get(family)
+                  or fm.findfont(fm.FontProperties(family=family)))
     out = FONTS / f"{source.stem.partition('[')[0]}-{weight}.ttf"
     if out.exists():
         return out

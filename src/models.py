@@ -16,7 +16,7 @@ from dataclasses import dataclass, field
 import numpy as np
 import torch
 
-from .config import SEED
+from .config import SEED, local_repo
 
 
 @dataclass(frozen=True)
@@ -154,7 +154,7 @@ def layers_and_width(key: str) -> tuple[int, int]:
     verbosity = logging.get_verbosity()
     logging.set_verbosity_error()
     try:
-        cfg = AutoConfig.from_pretrained(repo, local_files_only=True)
+        cfg = AutoConfig.from_pretrained(local_repo(repo), local_files_only=True)
     finally:
         logging.set_verbosity(verbosity)
     cfg = getattr(cfg, "vision_config", cfg)
@@ -202,22 +202,22 @@ def load(key: str, device: str = "cuda"):
 
     spec = MODELS[key]
     if spec.kind == "clip":
-        model = CLIPModel.from_pretrained(spec.repo, dtype=spec.dtype).vision_model
-        proc = CLIPProcessor.from_pretrained(spec.repo).image_processor
+        model = CLIPModel.from_pretrained(local_repo(spec.repo), dtype=spec.dtype).vision_model
+        proc = CLIPProcessor.from_pretrained(local_repo(spec.repo)).image_processor
     elif spec.kind == "random":
-        cfg = AutoConfig.from_pretrained(spec.repo)
+        cfg = AutoConfig.from_pretrained(local_repo(spec.repo))
         torch.manual_seed(SEED)
         torch.cuda.manual_seed_all(SEED)
         model = AutoModel.from_config(cfg)
-        proc = AutoImageProcessor.from_pretrained(spec.repo)
+        proc = AutoImageProcessor.from_pretrained(local_repo(spec.repo))
     elif spec.kind == "mae":
-        cfg = AutoConfig.from_pretrained(spec.repo)
+        cfg = AutoConfig.from_pretrained(local_repo(spec.repo))
         cfg.mask_ratio = 0.0
-        model = AutoModel.from_pretrained(spec.repo, config=cfg, dtype=spec.dtype)
-        proc = AutoImageProcessor.from_pretrained(spec.repo)
+        model = AutoModel.from_pretrained(local_repo(spec.repo), config=cfg, dtype=spec.dtype)
+        proc = AutoImageProcessor.from_pretrained(local_repo(spec.repo))
     else:
-        model = AutoModel.from_pretrained(spec.repo, dtype=spec.dtype)
-        proc = AutoImageProcessor.from_pretrained(spec.repo)
+        model = AutoModel.from_pretrained(local_repo(spec.repo), dtype=spec.dtype)
+        proc = AutoImageProcessor.from_pretrained(local_repo(spec.repo))
 
     if spec.kind == "siglip":
         model = model.vision_model

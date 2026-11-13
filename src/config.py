@@ -10,11 +10,44 @@ map them onto this data root.
 """
 from __future__ import annotations
 
+import functools
 import hashlib
+import json
 import os
 from pathlib import Path, PurePosixPath
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
+
+# Optional per-host overrides, unset by default. `VIT_SEMANTIC_MODEL_MAP` names
+# a JSON file mapping Hugging Face repository ids to local model directories,
+# for machines that keep weights outside the Hub cache. `VIT_SEMANTIC_FONTS`
+# names a directory of pinned font files that take precedence over the system
+# fonts, so the stimuli do not depend on what a machine has installed.
+MODEL_MAP_ENV = "VIT_SEMANTIC_MODEL_MAP"
+FONTS_ENV = "VIT_SEMANTIC_FONTS"
+
+
+@functools.lru_cache(maxsize=1)
+def _model_map() -> dict[str, str]:
+    path = os.environ.get(MODEL_MAP_ENV)
+    if not path:
+        return {}
+    with open(os.path.expanduser(path)) as f:
+        return {k: os.path.expanduser(v) for k, v in json.load(f).items()}
+
+
+def local_repo(repo: str) -> str:
+    """What to pass to `from_pretrained` for `repo` on this machine.
+
+    The local directory from `VIT_SEMANTIC_MODEL_MAP` if it lists `repo`,
+    otherwise `repo` itself. Records and fingerprints keep the repository id.
+    """
+    local = _model_map().get(repo)
+    if local is None:
+        return repo
+    if not Path(local).is_dir():
+        raise FileNotFoundError(f"{MODEL_MAP_ENV} maps {repo} to a missing directory: {local}")
+    return local
 
 # The committed word lists. `vocabulary.tsv` holds the eight lexical lists,
 # one row per word. `class_names.tsv` is the class-name curation record. The

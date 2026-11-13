@@ -25,7 +25,7 @@ import pandas as pd
 from PIL import Image
 from tqdm import tqdm
 
-from src.config import BACKGROUNDS, IMAGE_SIZE, SEED, ensure_dirs, manifest_path
+from src.config import BACKGROUNDS, IMAGE_SIZE, SEED, ensure_dirs, local_repo, manifest_path
 from src.stimuli.imagenet import IMAGENET, image_key, square_resize
 from src.stimuli.typography import n_slots
 from src.text_detector import LINK_THRESHOLD, LOW_TEXT, TEXT_THRESHOLD
@@ -175,8 +175,8 @@ def aesthetic_score(paths: list[str], gpu: bool) -> list[float]:
     from transformers import CLIPModel, CLIPProcessor
 
     device = "cuda" if (gpu and torch.cuda.is_available()) else "cpu"
-    model = CLIPModel.from_pretrained(CLIP_REPO).to(device).eval()
-    proc = CLIPProcessor.from_pretrained(CLIP_REPO)
+    model = CLIPModel.from_pretrained(local_repo(CLIP_REPO)).to(device).eval()
+    proc = CLIPProcessor.from_pretrained(local_repo(CLIP_REPO))
 
     def _as_tensor(x):
         # Some transformers versions return a model output rather than a tensor.

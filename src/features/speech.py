@@ -13,7 +13,7 @@ from pathlib import Path
 
 import numpy as np
 
-from ..config import WORD_SPEECH, line_fingerprint
+from ..config import WORD_SPEECH, line_fingerprint, local_repo
 from ..models import ENCODERS
 
 # The multi-speaker synthesizer. Its output is resampled to `SAMPLE_RATE`.
@@ -194,13 +194,13 @@ def build(words, *, device: str) -> np.ndarray:
 
     words = list(words)
     cells = grid()
-    tokenizer = AutoTokenizer.from_pretrained(TTS_REPO)
-    tts = VitsModel.from_pretrained(TTS_REPO).to(device).eval()
+    tokenizer = AutoTokenizer.from_pretrained(local_repo(TTS_REPO))
+    tts = VitsModel.from_pretrained(local_repo(TTS_REPO)).to(device).eval()
     tts.noise_scale = 0.0
     tts.noise_scale_duration = 0.0
     repo = ENCODERS[SPEECH_MODELS[0]][0]
-    features = AutoFeatureExtractor.from_pretrained(repo)
-    tower = AutoModel.from_pretrained(repo).to(device).eval()
+    features = AutoFeatureExtractor.from_pretrained(local_repo(repo))
+    tower = AutoModel.from_pretrained(local_repo(repo)).to(device).eval()
 
     spans = {(carrier, word): token_span(tokenizer, carrier, word)
              for carrier in CARRIERS for word in words}

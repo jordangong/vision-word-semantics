@@ -15,7 +15,7 @@ import numpy as np
 import torch
 import torch.nn as nn
 
-from ..config import WORD_TEXT, line_fingerprint
+from ..config import WORD_TEXT, line_fingerprint, local_repo
 from ..models import ENCODERS
 
 # Token length every carrier is padded to. `embed` checks on every batch
@@ -113,7 +113,7 @@ class Qwen3Tower(nn.Module):
         from transformers import AutoModel
 
         self.model = AutoModel.from_pretrained(
-            repo, dtype=torch.bfloat16, attn_implementation="sdpa")
+            local_repo(repo), dtype=torch.bfloat16, attn_implementation="sdpa")
         self.requires_grad_(False)
         self.model.eval()
 
@@ -129,7 +129,7 @@ def tokenizer(key: str, context: int):
         raise KeyError(f"encoder kind {kind!r} does not tokenise text")
     from transformers import AutoTokenizer
 
-    tok = AutoTokenizer.from_pretrained(repo, padding_side="left")
+    tok = AutoTokenizer.from_pretrained(local_repo(repo), padding_side="left")
     if tok.pad_token is None:
         tok.pad_token = tok.eos_token
     return lambda texts: dict(tok(

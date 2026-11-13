@@ -76,10 +76,15 @@ def font_path_for(family: str) -> str:
 
     Resolved through matplotlib's font manager, which has already indexed the
     system fonts. A family that is not installed raises LookupError, so no
-    fallback face stands in for a level of the font factor.
+    fallback face stands in for a level of the font factor. When
+    `VIT_SEMANTIC_FONTS` names a directory, a regular face of `family` found
+    there is used instead of the system's.
     """
     from matplotlib import font_manager
 
+    pinned = pinned_fonts().get(family)
+    if pinned is not None:
+        return pinned
     available = {f.name for f in font_manager.fontManager.ttflist}
     if family not in available:
         raise LookupError(
@@ -87,6 +92,38 @@ def font_path_for(family: str) -> str:
             f"include {sorted(available)[:8]}...")
     return font_manager.findfont(
         font_manager.FontProperties(family=family), fallback_to_default=False)
+
+
+@functools.lru_cache(maxsize=1)
+def pinned_fonts() -> dict[str, str]:
+    """Family name to file for the regular faces in `VIT_SEMANTIC_FONTS`.
+
+    Each file is also registered with matplotlib, so the figures find the
+    pinned faces too. Two regular faces of one family is an error.
+    """
+    import os
+    from pathlib import Path
+
+    from matplotlib import font_manager
+
+    from ..config import FONTS_ENV
+
+    root = os.environ.get(FONTS_ENV)
+    if not root:
+        return {}
+    out: dict[str, str] = {}
+    for path in sorted(Path(root).expanduser().iterdir()):
+        if path.suffix.lower() not in {".ttf", ".otf"}:
+            continue
+        font_manager.fontManager.addfont(str(path))
+        prop = font_manager.ttfFontProperty(font_manager.ft2font.FT2Font(str(path)))
+        if prop.style != "normal" or prop.weight not in (400, "normal", "regular", "book"):
+            continue
+        if prop.name in out:
+            raise RuntimeError(f"two regular faces of {prop.name!r} in {root}: "
+                               f"{out[prop.name]} and {path}")
+        out[prop.name] = str(path)
+    return out
 
 
 @functools.lru_cache(maxsize=None)

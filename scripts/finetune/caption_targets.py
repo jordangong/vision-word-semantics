@@ -21,7 +21,7 @@ import pyarrow.parquet as pq
 import torch
 from tqdm import tqdm
 
-from src.config import ensure_dirs
+from src.config import ensure_dirs, local_repo
 from src.features.speech import SAMPLE_RATE
 from src.features.text import Qwen3Tower, tokenizer
 from src.finetune import data
@@ -116,8 +116,8 @@ def spoken(device: str) -> None:
     repo, dim, _ = ENCODERS[SPEECH_TOWER]
     out = data.caption_dir(SPEECH_TOWER)
     out.mkdir(parents=True, exist_ok=True)
-    features = AutoFeatureExtractor.from_pretrained(repo)
-    tower = AutoModel.from_pretrained(repo, dtype=torch.float32).to(device).eval()
+    features = AutoFeatureExtractor.from_pretrained(local_repo(repo))
+    tower = AutoModel.from_pretrained(local_repo(repo), dtype=torch.float32).to(device).eval()
 
     sources = data.source_shards()
     total = len(pd.read_parquet(data.SPEECH_COCO_MANIFEST, columns=["key"]))
