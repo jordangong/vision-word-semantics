@@ -38,12 +38,17 @@ def sha256(path, chunk: int = 1 << 24) -> str:
     return h.hexdigest()
 
 
-def train(backbone: str, tower: str) -> None:
-    """Run one finetune and write its best checkpoint and provenance."""
+def train(backbone: str, tower: str, micro_batch: int | None = None) -> None:
+    """Run one finetune and write its best checkpoint and provenance.
+
+    `micro_batch` overrides `MICRO_BATCH[backbone]` for a smaller card. The
+    step's gradient is the full-batch loss either way (`cached_step`); the
+    recipe records the value used.
+    """
     kept = data.kept_size()
     plan = schedule(kept)
     recipe = Recipe(backbone=backbone, tower=tower, steps=plan["steps"],
-                    warmup=plan["warmup"], micro_batch=MICRO_BATCH[backbone])
+                    warmup=plan["warmup"], micro_batch=micro_batch or MICRO_BATCH[backbone])
     out = CHECKPOINTS / recipe.name
     print(f"{recipe.name} | {kept:,} samples after the text filter | "
           f"{recipe.steps:,} steps, warmup {recipe.warmup}, validation every "
@@ -122,12 +127,15 @@ def main() -> None:
                                                for k in FINETUNES}))
     ap.add_argument("--all", action="store_true",
                     help="run every finetune that has no provenance yet")
+    ap.add_argument("--micro-batch", type=int,
+                    help="images per forward pass, overriding MICRO_BATCH; "
+                         "must divide the batch")
     a = ap.parse_args()
     ensure_dirs()
     if a.all:
         train_all()
     elif a.backbone and a.tower:
-        train(a.backbone, a.tower)
+        train(a.backbone, a.tower, a.micro_batch)
     else:
         ap.error("pass --backbone and --tower, or --all")
 
