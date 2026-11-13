@@ -50,6 +50,9 @@ def main() -> None:
                     choices=("main", "concepts", "two_clue"))
     ap.add_argument("--finetuned", action="store_true",
                     help="embed the vocabulary with the SPEECH-COCO finetunes")
+    ap.add_argument("--models", nargs="+", metavar="KEY",
+                    help="embed only these registry keys, in this order "
+                         "(default: the whole sweep, or every finetune)")
     a = ap.parse_args()
     if a.finetuned and a.manifest != "main":
         raise SystemExit("--finetuned embeds the vocabulary manifest only")
@@ -66,6 +69,11 @@ def main() -> None:
         jobs = [("two-clue items", two_clue.MANIFEST_PATH,
                  two_clue.EMBEDDINGS_ROOT)]
     models = FINETUNES if a.finetuned else DEFAULT_SWEEP
+    if a.models:
+        unknown = [k for k in a.models if k not in models]
+        if unknown:
+            raise SystemExit(f"not in this sweep: {unknown}; have {list(models)}")
+        models = tuple(a.models)
 
     missing = [str(p) for _, p, _ in jobs if not p.exists()]
     if missing:
