@@ -75,6 +75,13 @@ TWO_CLUE_CONFIRMATORY_TSV = REPO_ROOT / "lexicon" / "two_clue_confirmatory.tsv"
 
 DATA_ROOT = Path(os.environ.get("VIT_SEMANTIC_DATA", REPO_ROOT / "data"))
 
+# Optional, unset by default: a directory that takes the analysis outputs
+# (`results/`, `figures/`, `tables/`) and the similarity matrices in place of
+# the committed paper outputs, for a run over a sweep other than the paper's
+# (`models.SWEEP_ENV`, which refuses to run without it).
+OUTPUTS_ENV = "VIT_SEMANTIC_OUTPUTS"
+OUTPUTS = Path(os.path.expanduser(os.environ[OUTPUTS_ENV])) if os.environ.get(OUTPUTS_ENV) else None
+
 BACKGROUNDS = DATA_ROOT / "backgrounds"
 # Tables generated from the committed word lists, not the lists themselves.
 LEXICON = DATA_ROOT / "lexicon"
@@ -82,15 +89,15 @@ RENDERS = DATA_ROOT / "renders"
 EMBEDDINGS = DATA_ROOT / "embeddings"
 
 # Word-by-word cosine matrices, one per model and encoder, and their index.
-SIMILARITY = DATA_ROOT / "similarity"
+SIMILARITY = (OUTPUTS or DATA_ROOT) / "similarity"
 SIMILARITY_INDEX = SIMILARITY / "index.parquet"
 
 # The bold face cut from the installed variable sans for the figures.
 FONTS = DATA_ROOT / "fonts"
 
-RESULTS = REPO_ROOT / "results"
-FIGURES = REPO_ROOT / "figures"
-TABLES = REPO_ROOT / "tables"
+RESULTS = (OUTPUTS or REPO_ROOT) / "results"
+FIGURES = (OUTPUTS or REPO_ROOT) / "figures"
+TABLES = (OUTPUTS or REPO_ROOT) / "tables"
 
 # Finetuned backbone weights, one directory per finetuned model, each holding
 # `best.slim.pt` and a `provenance.json` with the recipe and the step.

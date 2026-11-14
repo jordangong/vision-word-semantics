@@ -19,7 +19,7 @@ import pandas as pd
 
 from src.config import EMBEDDINGS, LEXICON, ensure_dirs
 from src.features.image import embed_manifest
-from src.models import DEFAULT_SWEEP, FINETUNES
+from src.models import DEFAULT_SWEEP, EXTENSIONS, FINETUNES
 from src.stimuli import imagenet
 from src.stimuli import two_clue_render as two_clue
 
@@ -70,7 +70,8 @@ def main() -> None:
                  two_clue.EMBEDDINGS_ROOT)]
     models = FINETUNES if a.finetuned else DEFAULT_SWEEP
     if a.models:
-        unknown = [k for k in a.models if k not in models]
+        allowed = FINETUNES if a.finetuned else DEFAULT_SWEEP + EXTENSIONS
+        unknown = [k for k in a.models if k not in allowed]
         if unknown:
             raise SystemExit(f"not in this sweep: {unknown}; have {list(models)}")
         models = tuple(a.models)

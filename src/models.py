@@ -11,6 +11,8 @@ the same backbone, processor and depth for a key.
 from __future__ import annotations
 
 import gc
+import os
+import re
 from dataclasses import dataclass, field
 
 import numpy as np
@@ -47,6 +49,40 @@ _SPECS = [
     ModelSpec("webssl-dino-1b", "facebook/webssl-dino1b-full2b-224", "dino", "Web-DINO", 1000),
     ModelSpec("vit-random-b", "google/vit-base-patch16-224", "random", "Untrained", 86),
 ]
+
+# Models beyond the paper's fourteen, for a scale series: the rest of the
+# DINOv3 ViT line, its two satellite-image (SAT-493M) models, the rest of the
+# Web-DINO full2b series, and Web-DINO trained on the two text-filtered MC-2B
+# subsets (light2b keeps images with any text, heavy2b charts and documents).
+# Web-DINO-7B was released only on the 8B-image set. As in the paper, a model
+# runs in float32 unless it would not fit a 32 GB GPU, which puts the 7B
+# models in bfloat16. Registered for `embed.py --models` and `SWEEP_ENV`;
+# the paper's sweep does not include them.
+_EXTENSION_SPECS = [
+    ModelSpec("dinov3-s", "facebook/dinov3-vits16-pretrain-lvd1689m", "dino", "DINOv3", 22),
+    ModelSpec("dinov3-splus", "facebook/dinov3-vits16plus-pretrain-lvd1689m", "dino", "DINOv3", 29),
+    ModelSpec("dinov3-l-sat", "facebook/dinov3-vitl16-pretrain-sat493m", "dino", "DINOv3-SAT", 303),
+    ModelSpec("dinov3-7b-sat", "facebook/dinov3-vit7b16-pretrain-sat493m", "dino", "DINOv3-SAT",
+              6716, dtype=torch.bfloat16),
+    ModelSpec("webssl-dino-300m", "facebook/webssl-dino300m-full2b-224", "dino", "Web-DINO", 304),
+    ModelSpec("webssl-dino-2b", "facebook/webssl-dino2b-full2b-224", "dino", "Web-DINO", 2084),
+    ModelSpec("webssl-dino-3b", "facebook/webssl-dino3b-full2b-224", "dino", "Web-DINO", 2948),
+    ModelSpec("webssl-dino-5b", "facebook/webssl-dino5b-full2b-224", "dino", "Web-DINO", 4938),
+    ModelSpec("webssl-dino-7b", "facebook/webssl-dino7b-full8b-224", "dino", "Web-DINO",
+              6450, dtype=torch.bfloat16),
+    ModelSpec("webssl-dino-300m-light", "facebook/webssl-dino300m-light2b-224", "dino",
+              "Web-DINO light2b", 304),
+    ModelSpec("webssl-dino-2b-light", "facebook/webssl-dino2b-light2b-224", "dino",
+              "Web-DINO light2b", 2084),
+    ModelSpec("webssl-dino-3b-light", "facebook/webssl-dino3b-light2b-224", "dino",
+              "Web-DINO light2b", 2948),
+    ModelSpec("webssl-dino-2b-heavy", "facebook/webssl-dino2b-heavy2b-224", "dino",
+              "Web-DINO heavy2b", 2084),
+    ModelSpec("webssl-dino-3b-heavy", "facebook/webssl-dino3b-heavy2b-224", "dino",
+              "Web-DINO heavy2b", 2948),
+]
+EXTENSIONS = tuple(s.key for s in _EXTENSION_SPECS)
+_SPECS += _EXTENSION_SPECS
 
 # The fourteen image models, the untrained ViT-B last, in the row order of the
 # tables.
@@ -142,6 +178,35 @@ PRETTY = {"dinov2-b": "DINOv2-B", "dinov2-l": "DINOv2-L", "dinov2-g": "DINOv2-G"
 PRETTY |= {k: f"{PRETTY[TWIN_OF[k]]} + SPEECH-COCO "
               f"{'speech' if ENCODERS[MODELS[k].extra['tower']][2] == 'speech' else 'text'}"
            for k in FINETUNES}
+PRETTY |= {"dinov3-s": "DINOv3-S", "dinov3-splus": "DINOv3-S+",
+           "dinov3-l-sat": "DINOv3-L SAT", "dinov3-7b-sat": "DINOv3-7B SAT",
+           "webssl-dino-300m": "Web-DINO-0.3B", "webssl-dino-2b": "Web-DINO-2B",
+           "webssl-dino-3b": "Web-DINO-3B", "webssl-dino-5b": "Web-DINO-5B",
+           "webssl-dino-7b": "Web-DINO-7B (8B data)",
+           "webssl-dino-300m-light": "Web-DINO-0.3B light",
+           "webssl-dino-2b-light": "Web-DINO-2B light",
+           "webssl-dino-3b-light": "Web-DINO-3B light",
+           "webssl-dino-2b-heavy": "Web-DINO-2B heavy",
+           "webssl-dino-3b-heavy": "Web-DINO-3B heavy"}
+
+# The paper's sweep, kept under its own name. `VIT_SEMANTIC_SWEEP` (keys
+# separated by spaces or commas, the untrained baseline included) replaces
+# `DEFAULT_SWEEP` for every stage, so the analysis scripts run unchanged over
+# another set of models. It is refused unless `VIT_SEMANTIC_OUTPUTS` moves the
+# outputs away from the committed paper outputs.
+PAPER_SWEEP = DEFAULT_SWEEP
+SWEEP_ENV = "VIT_SEMANTIC_SWEEP"
+if os.environ.get(SWEEP_ENV):
+    from .config import OUTPUTS, OUTPUTS_ENV
+    DEFAULT_SWEEP = tuple(re.split(r"[\s,]+", os.environ[SWEEP_ENV].strip()))
+    _bad = [k for k in DEFAULT_SWEEP if k not in MODELS or k in FINETUNES]
+    if _bad:
+        raise KeyError(f"{SWEEP_ENV} lists unregistered or finetuned models: {_bad}")
+    if BASELINE not in DEFAULT_SWEEP:
+        raise ValueError(f"{SWEEP_ENV} must include the baseline {BASELINE}")
+    if OUTPUTS is None:
+        raise RuntimeError(f"{SWEEP_ENV} needs {OUTPUTS_ENV}, so the committed "
+                           f"paper outputs are not overwritten")
 
 # Family and parameter count of each registered key, for grouping and sorting.
 FAMILY_OF: dict[str, str] = {k: s.family for k, s in MODELS.items()}
