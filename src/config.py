@@ -49,6 +49,22 @@ def local_repo(repo: str) -> str:
         raise FileNotFoundError(f"{MODEL_MAP_ENV} maps {repo} to a missing directory: {local}")
     return local
 
+
+FINETUNE_STEPS_ENV = "VIT_SEMANTIC_FINETUNE_STEPS"
+
+
+def finetune_steps() -> dict[str, int]:
+    """Recorded training steps of a rerun's finetunes, keyed by finetune key.
+
+    Read from the JSON file `VIT_SEMANTIC_FINETUNE_STEPS` names, if set; empty
+    otherwise, so the paper's steps in `models._FINETUNES` apply.
+    """
+    path = os.environ.get(FINETUNE_STEPS_ENV)
+    if not path:
+        return {}
+    with open(os.path.expanduser(path)) as f:
+        return {k: int(v) for k, v in json.load(f).items()}
+
 # The committed word lists. `vocabulary.tsv` holds the eight lexical lists,
 # one row per word. `class_names.tsv` is the class-name curation record. The
 # two two-clue tables are hashed cell by cell into the two-clue fingerprints.

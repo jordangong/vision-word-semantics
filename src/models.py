@@ -16,7 +16,7 @@ from dataclasses import dataclass, field
 import numpy as np
 import torch
 
-from .config import SEED, local_repo
+from .config import FINETUNE_STEPS_ENV, SEED, finetune_steps, local_repo
 
 
 @dataclass(frozen=True)
@@ -109,8 +109,15 @@ _FINETUNES = [
 ]
 
 _BASE = {s.key: s for s in _SPECS}
+# A rerun's own finetunes stop at their own steps; `VIT_SEMANTIC_FINETUNE_STEPS`
+# replaces the paper's step for each key it lists.
+_STEP_OVERRIDES = finetune_steps()
+_unknown = set(_STEP_OVERRIDES) - {finetune_key(b, t) for b, t, _ in _FINETUNES}
+if _unknown:
+    raise KeyError(f"{FINETUNE_STEPS_ENV} lists unknown finetunes: {sorted(_unknown)}")
 for _backbone, _tower, _step in _FINETUNES:
     _twin = _BASE[_backbone]
+    _step = _STEP_OVERRIDES.get(finetune_key(_backbone, _tower), _step)
     _SPECS.append(ModelSpec(
         key=finetune_key(_backbone, _tower), repo=_twin.repo, kind=_twin.kind,
         family=_twin.family, params_m=_twin.params_m, dtype=_twin.dtype,
